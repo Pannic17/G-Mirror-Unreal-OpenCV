@@ -46,7 +46,7 @@ ACVProcessor::ACVProcessor()
 void ACVProcessor::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!DUseTCP)
+	if (!UseTCP)
 	{
 		InitCameraAndThreadRunnable(0);
 	}
@@ -147,20 +147,9 @@ void ACVProcessor::DetectSSDResFace(Mat& Frame)
 	Mat FaceDetection = SSDResNet.forward("detection_out");
 	Mat Detections(FaceDetection.size[2], FaceDetection.size[3], CV_32F, FaceDetection.ptr<float>());
 	SSDResCount = 0;
-	// TODO: Get ResNet SSD Output
-	// faceX = vacunt;
-	// faceY = vacunt;
-	// faceSize = vacunt;
-
-	// Face0 = Detections.at<float>(0, 0);
-	// Face1 = Detections.at<float>(0, 1);
-	// Face2 = Detections.at<float>(0, 2);
-	// Face3 = Detections.at<float>(0, 3);
-	// Face4 = Detections.at<float>(0, 4);
-	// Face5 = Detections.at<float>(0, 5);
-	// Face6 = Detections.at<float>(0, 6);
-	// Face7 = Detections.at<float>(0, 7);
-	// Face8 = Detections.at<float>(0, 8);
+	SSDResFaceX = VACUNT;
+	SSDResFaceY = VACUNT;
+	SSDResFaceSize = VACUNT;
 
 	for (int i = 0; i < Detections.rows; i++)
 	{
@@ -179,11 +168,11 @@ void ACVProcessor::DetectSSDResFace(Mat& Frame)
 
 			float centerX = (xTL + w / 2) * 1920;
 			float centerY = (yTL + h / 2) * 1080;
-			// faceX.Add(centerX);
-			// faceY.Add(centerY);
+			SSDResFaceX.Add(centerX);
+			SSDResFaceY.Add(centerY);
 
 			float size = sqrt(w * w + h * h);
-			// faceSize.Add(size);
+			SSDResFaceSize.Add(size);
 		}
 	}
 }

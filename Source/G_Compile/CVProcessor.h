@@ -103,7 +103,7 @@ public:
 private:
 	// Define private variables and helper functions
 	/* Configs */
-	// bool DUseTCP = false;
+	// bool UseTCP = false;
 	// bool UseYolov5 = true;
 	// bool UseYolov3 = false;
 	// bool UseSSDRes = false;
