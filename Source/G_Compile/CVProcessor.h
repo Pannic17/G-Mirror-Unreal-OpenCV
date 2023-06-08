@@ -103,10 +103,10 @@ public:
 private:
 	// Define private variables and helper functions
 	/* Configs */
-	bool UseTCP = false;
-	bool UseYolov5 = true;
-	bool UseYolov3 = false;
-	bool UseSSDRes = false;
+	// bool DUseTCP = false;
+	// bool UseYolov5 = true;
+	// bool UseYolov3 = false;
+	// bool UseSSDRes = false;
 
 	UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
 	void InitCameraAndThreadRunnable(uint32 index);

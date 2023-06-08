@@ -2,6 +2,7 @@
 
 
 #include "CVProcessor.h"
+#include "DNNConfig.h"
 
 // Sets default values
 ACVProcessor::ACVProcessor()
@@ -45,7 +46,7 @@ ACVProcessor::ACVProcessor()
 void ACVProcessor::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!UseTCP)
+	if (!DUseTCP)
 	{
 		InitCameraAndThreadRunnable(0);
 	}
@@ -125,7 +126,7 @@ void ACVProcessor::DetectYolov3Body(Mat& inMat)
 	Yolov3Count = 0;
 	int Width = inMat.cols;
 	int Height = inMat.rows;
-	cv::Mat m_blob = cv::dnn::blobFromImage(inMat, 1 / 255.0, cv::Size(inWidth, inHeight), cv::Scalar(0, 0, 0),false, false);
+	cv::Mat m_blob = cv::dnn::blobFromImage(inMat, 1 / 255.0, cv::Size(Yolov3Width, Yolov3Height), cv::Scalar(0, 0, 0),false, false);
 	Yolov3Net.setInput(m_blob);
 	vector<Mat> m_outs;
 	// TODO: Get Yolov3 Output
