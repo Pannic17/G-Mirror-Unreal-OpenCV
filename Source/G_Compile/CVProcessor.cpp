@@ -89,7 +89,13 @@ void ACVProcessor::ReadFrame()
 		{
 			cvtColor(frame, frame, COLOR_BGRA2BGR);
 		}
+		
 		// TODO: EnhanceImage
+		if (Enhance)
+		{
+			
+		}
+		
 		AsyncTask(ENamedThreads::GameThread, [=]()
 		{
 			UTexture2D* OutTexture = ConvertMat2Texture2D(frame);
@@ -107,16 +113,21 @@ void ACVProcessor::ReadFrame()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
 			Yolov3Count = 0;
-			// TODO: Detect with YoLov3
+			DetectYolov3Body(frame);
 		}
 		if (UseSSDRes)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
 			SSDResCount = 0;
-			// TODO: Detect with ResNet SSD
+			DetectSSDResFace(frame);
 		}
 		
 	}
+}
+
+void ACVProcessor::DetectYolov5Head(Mat& Frame)
+{
+	// TODO: Detect With Yolov5 Model
 }
 
 // Detect With Yolov3 Model
@@ -151,6 +162,8 @@ void ACVProcessor::DetectSSDResFace(Mat& Frame)
 	SSDResFaceY = VACUNT;
 	SSDResFaceSize = VACUNT;
 
+	UE_LOG(LogTemp, Warning, TEXT("####Detected: %d"), Detections.rows);
+
 	for (int i = 0; i < Detections.rows; i++)
 	{
 		const float Confidence = Detections.at<float>(i, 2);
@@ -173,6 +186,8 @@ void ACVProcessor::DetectSSDResFace(Mat& Frame)
 
 			float size = sqrt(w * w + h * h);
 			SSDResFaceSize.Add(size);
+
+			UE_LOG(LogTemp, Warning, TEXT("####Face At X:%f, Y:%f, S:%f"), centerX, centerY, size);
 		}
 	}
 }
@@ -183,8 +198,8 @@ UTexture2D* ACVProcessor::ConvertMat2Texture2D(const Mat& InMat)
 	int32 Width = InMat.cols;
 	int32 Height = InMat.rows;
 	int32 Channels = InMat.channels();
-	cv::Mat OutMat;
-	cv::cvtColor(InMat, OutMat, CV_RGB2RGBA);
+	Mat OutMat;
+	cvtColor(InMat, OutMat, CV_RGB2RGBA);
 	UTexture2D* OutTexture = UTexture2D::CreateTransient(Width, Height);
 	OutTexture->SRGB = 0;
 	//NewTexture >CompressionSettings = TextureCompressionSettings::TC_Displacementmap;
@@ -200,21 +215,21 @@ UTexture2D* ACVProcessor::ConvertMat2Texture2D(const Mat& InMat)
 void ACVProcessor::InitCameraAndThreadRunnable(uint32 index)
 {
 	Async<>(EAsyncExecution::Thread, [=]()
+	{
+		if (Camera.open(index))
 		{
-			if (Camera.open(index))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Open Camera Sucessful !!!"));
-				Camera.set(CV_CAP_PROP_FRAME_WIDTH,1920);
-				Camera.set(CV_CAP_PROP_FRAME_HEIGHT,1080);
-				Camera.set(CV_CAP_PROP_FPS, 30);
-				ReadThread = FReadImageRunnable::InitReadRunnable(this);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Open Camera Failed !!!"));
-			}
-			FPlatformProcess::Sleep(0.01);
-		});
+			UE_LOG(LogTemp, Warning, TEXT("Open Camera Sucessful !!!"));
+			Camera.set(CV_CAP_PROP_FRAME_WIDTH,1920);
+			Camera.set(CV_CAP_PROP_FRAME_HEIGHT,1080);
+			Camera.set(CV_CAP_PROP_FPS, 30);
+			ReadThread = FReadImageRunnable::InitReadRunnable(this);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Open Camera Failed !!!"));
+		}
+		FPlatformProcess::Sleep(0.01);
+	});
 }
 
 /*Thread Instance*/

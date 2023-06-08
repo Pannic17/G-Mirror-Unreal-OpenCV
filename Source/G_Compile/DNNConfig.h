@@ -7,6 +7,7 @@ using namespace dnn;
 using namespace std;
 
 TArray<float> VACUNT;
+bool Enhance = false;
 
 bool UseTCP = false;
 bool UseYolov5 = true;
