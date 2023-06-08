@@ -41,10 +41,6 @@ ACVProcessor::ACVProcessor()
 	this->SSDResNet.setPreferableTarget(DNN_TARGET_CPU);
 }
 
-void ACVProcessor::ReadFrame()
-{
-}
-
 // Called when the game starts or when spawned
 void ACVProcessor::BeginPlay()
 {
@@ -75,6 +71,67 @@ void ACVProcessor::Tick(float DeltaTime)
 		UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
 		// TODO: Show ResNet SSD Result
 	}
+}
+
+void ACVProcessor::ReadFrame()
+{
+	if (Camera.isOpened())
+	{
+		Mat frame;
+		Camera.read(frame);
+		if (frame.empty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Frame is Empty !!!"));
+			return;
+		}
+		if (frame.channels() == 4)
+		{
+			cvtColor(frame, frame, COLOR_BGRA2BGR);
+		}
+		// TODO: EnhanceImage
+		AsyncTask(ENamedThreads::GameThread, [=]()
+		{
+			UTexture2D* OutTexture = ConvertMat2Texture2D(frame);
+			// TODO: Show Native Capture Image
+			// ShowNativeImage(OutTexture);
+		});
+
+		if (UseYolov5)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Use Yolov5 Model"));
+			// TODO: Show Yolov5 Result
+		}
+		if (UseYolov3)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
+			// TODO: Show Yolov3 Result
+		}
+		if (UseSSDRes)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
+			// TODO: Show ResNet SSD Result
+		}
+		
+	}
+}
+
+// Convert captured image from OpenCV Mat to Texture2D for Unreal
+UTexture2D* ACVProcessor::ConvertMat2Texture2D(const Mat& InMat)
+{
+	int32 Width = InMat.cols;
+	int32 Height = InMat.rows;
+	int32 Channels = InMat.channels();
+	cv::Mat OutMat;
+	cv::cvtColor(InMat, OutMat, CV_RGB2RGBA);
+	UTexture2D* OutTexture = UTexture2D::CreateTransient(Width, Height);
+	OutTexture->SRGB = 0;
+	//NewTexture >CompressionSettings = TextureCompressionSettings::TC_Displacementmap;
+	const int DataSize = Width * Height * 4;
+	void* TextureData = OutTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memmove(TextureData, OutMat.data, DataSize);
+	OutTexture->PlatformData->Mips[0].BulkData.Unlock();
+	OutTexture->UpdateResource();
+	return OutTexture;
 }
 
 // Initialize Camera and Thread Runnable

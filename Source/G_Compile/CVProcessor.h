@@ -49,8 +49,6 @@ public:
 	// Sets default values for this actor's properties
 	ACVProcessor();
 
-	void ReadFrame();
-
 	/* Define Networks */
 	Net Yolov5Net;
 	Net Yolov3Net;
@@ -66,6 +64,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	/* Core */
+	void ReadFrame();
+
 private:
 	// Define private variables and helper functions
 	/* Configs */
@@ -73,7 +74,8 @@ private:
 	bool UseYolov5 = true;
 	bool UseYolov3 = false;
 	bool UseSSDRes = false;
-	
+
+	UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
 	void InitCameraAndThreadRunnable(uint32 index);
 	
 };
