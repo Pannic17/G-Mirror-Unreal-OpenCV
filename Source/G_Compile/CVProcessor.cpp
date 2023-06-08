@@ -119,20 +119,73 @@ void ACVProcessor::ReadFrame()
 	}
 }
 
-void ACVProcessor::DetectYolov3Body(Mat& inMat)
+// Detect With Yolov3 Model
+void ACVProcessor::DetectYolov3Body(Mat& Frame)
 {
-	
-	if (inMat.empty()) return;
+	if (Frame.empty()) return;
 	Yolov3Count = 0;
-	int Width = inMat.cols;
-	int Height = inMat.rows;
-	cv::Mat m_blob = cv::dnn::blobFromImage(inMat, 1 / 255.0, cv::Size(Yolov3Width, Yolov3Height), cv::Scalar(0, 0, 0),false, false);
-	Yolov3Net.setInput(m_blob);
-	vector<Mat> m_outs;
+	int Width = Frame.cols;
+	int Height = Frame.rows;
+	Mat Yolov3Bolb = blobFromImage(Frame, 1 / 255.0, Size(Yolov3Width, Yolov3Height), Scalar(0, 0, 0),false, false);
+	Yolov3Net.setInput(Yolov3Bolb);
 	// TODO: Get Yolov3 Output
 	// Yolov3Net.forward(m_outs, getOutputsNames(Yolov3Net));
-	// postprocess(inMat, m_outs);
-	if(!m_outs.empty()) m_outs.resize(0);
+	// postprocess(Frame, m_outs);
+	if(!Yolov3Bolb.empty()) Yolov3Bolb.resize(0);
+}
+
+// Detect With ResNet SSD Model
+void ACVProcessor::DetectSSDResFace(Mat& Frame)
+{
+	if (Frame.empty()) return;
+	TArray<UTexture2D*> outarr;//类似std::Vector动态数组
+
+	int Width = Frame.cols;
+	int Height = Frame.rows;
+	Mat SSDResBlob = blobFromImage(Frame, 0.5, Size(SSDResWidth, SSDResHeight), Scalar(0, 0, 0), false, false);
+	SSDResNet.setInput(SSDResBlob, "data");
+	Mat FaceDetection = SSDResNet.forward("detection_out");
+	Mat Detections(FaceDetection.size[2], FaceDetection.size[3], CV_32F, FaceDetection.ptr<float>());
+	SSDResCount = 0;
+	// TODO: Get ResNet SSD Output
+	// faceX = vacunt;
+	// faceY = vacunt;
+	// faceSize = vacunt;
+
+	// Face0 = Detections.at<float>(0, 0);
+	// Face1 = Detections.at<float>(0, 1);
+	// Face2 = Detections.at<float>(0, 2);
+	// Face3 = Detections.at<float>(0, 3);
+	// Face4 = Detections.at<float>(0, 4);
+	// Face5 = Detections.at<float>(0, 5);
+	// Face6 = Detections.at<float>(0, 6);
+	// Face7 = Detections.at<float>(0, 7);
+	// Face8 = Detections.at<float>(0, 8);
+
+	for (int i = 0; i < Detections.rows; i++)
+	{
+		const float Confidence = Detections.at<float>(i, 2);
+		if(Confidence > SSDResConfidence)
+		{
+			++SSDResCount;
+
+			float xTL = Detections.at<float>(i, 3);
+			float yTL = Detections.at<float>(i, 4);
+			float xBR = Detections.at<float>(i, 5);
+			float yBR = Detections.at<float>(i, 6);
+
+			float w = xBR - xTL;
+			float h = yBR - yTL;
+
+			float centerX = (xTL + w / 2) * 1920;
+			float centerY = (yTL + h / 2) * 1080;
+			// faceX.Add(centerX);
+			// faceY.Add(centerY);
+
+			float size = sqrt(w * w + h * h);
+			// faceSize.Add(size);
+		}
+	}
 }
 
 // Convert captured image from OpenCV Mat to Texture2D for Unreal

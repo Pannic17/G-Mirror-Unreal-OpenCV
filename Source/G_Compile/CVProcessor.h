@@ -97,8 +97,8 @@ public:
 	
 	/* Detections */
 	void DetectYolov5Head(Mat& Frame);
-	void DetectYolov3Body(Mat& inMat);
-	void DetectSSDResFace(Mat& inMat);
+	void DetectYolov3Body(Mat& Frame);
+	void DetectSSDResFace(Mat& Frame);
 
 private:
 	// Define private variables and helper functions
@@ -108,7 +108,7 @@ private:
 	// bool UseYolov3 = false;
 	// bool UseSSDRes = false;
 
-	UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
+	static UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
 	void InitCameraAndThreadRunnable(uint32 index);
 
 	void CutImage(const Mat inMat, FVector2D inPos);
