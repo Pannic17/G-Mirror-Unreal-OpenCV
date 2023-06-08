@@ -56,19 +56,19 @@ void ACVProcessor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (UseYolov5)
+	if (Yolov5Count)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Use Yolov5 Model"));
-		// TODO: Show Yolov5 Result
+		UE_LOG(LogTemp, Warning, TEXT("Detected Heads: %d"), Yolov5Count);
+		ShowYolov5Result(Yolov5Count);
 	}
 	if (UseYolov3)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
-		// TODO: Show Yolov3 Result
+		UE_LOG(LogTemp, Warning, TEXT("Detected Bodies: %d"), Yolov3Count);
+		ShowYolov3Result(Yolov3Count);
 	}
 	if (UseSSDRes)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
+		UE_LOG(LogTemp, Warning, TEXT("Detected Faces: %d"), SSDResCount);
 		// TODO: Show ResNet SSD Result
 	}
 }
@@ -92,27 +92,46 @@ void ACVProcessor::ReadFrame()
 		AsyncTask(ENamedThreads::GameThread, [=]()
 		{
 			UTexture2D* OutTexture = ConvertMat2Texture2D(frame);
-			// TODO: Show Native Capture Image
-			// ShowNativeImage(OutTexture);
+			// Show Native Capture Image
+			ShowNativeImage(OutTexture);
 		});
 
 		if (UseYolov5)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use Yolov5 Model"));
-			// TODO: Show Yolov5 Result
+			Yolov5Count = 0;
+			// TODO: Detect with YoLov5
 		}
 		if (UseYolov3)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
-			// TODO: Show Yolov3 Result
+			Yolov3Count = 0;
+			// TODO: Detect with YoLov3
 		}
 		if (UseSSDRes)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
-			// TODO: Show ResNet SSD Result
+			SSDResCount = 0;
+			// TODO: Detect with ResNet SSD
 		}
 		
 	}
+}
+
+void ACVProcessor::DetectYolov3Body(Mat& inMat)
+{
+	
+	if (inMat.empty()) return;
+	Yolov3Count = 0;
+	int Width = inMat.cols;
+	int Height = inMat.rows;
+	cv::Mat m_blob = cv::dnn::blobFromImage(inMat, 1 / 255.0, cv::Size(inWidth, inHeight), cv::Scalar(0, 0, 0),false, false);
+	Yolov3Net.setInput(m_blob);
+	vector<Mat> m_outs;
+	// TODO: Get Yolov3 Output
+	// Yolov3Net.forward(m_outs, getOutputsNames(Yolov3Net));
+	// postprocess(inMat, m_outs);
+	if(!m_outs.empty()) m_outs.resize(0);
 }
 
 // Convert captured image from OpenCV Mat to Texture2D for Unreal

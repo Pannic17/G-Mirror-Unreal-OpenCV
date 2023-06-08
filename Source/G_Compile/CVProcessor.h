@@ -28,8 +28,10 @@ struct NetConfig
 
 struct DetectionResult
 {
+	int count;
 	vector<float> confidences;
 	vector<cv::Rect> boxes;
+	vector<int> classIds;
 };
 
 const float anchors_640[3][6] = { {10.0,  13.0, 16.0,  30.0,  33.0,  23.0},
@@ -67,6 +69,14 @@ public:
 	/* Core */
 	void ReadFrame();
 
+	/* Result Var - UPROPERTY */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int Yolov5Count = 0;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int Yolov3Count = 0;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int SSDResCount = 0;
+
 	/* Show Event - UFUNCTION */
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowImage(UTexture2D* outRGB,int Width,int Height);
@@ -74,6 +84,21 @@ public:
 	void ShowCutImage( UTexture2D* outRGB);
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowNativeImage(UTexture2D* outRGB);
+
+	// TODO: Yolov5 Result
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowYolov5Result(int Count);
+	// Yolov3
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowYolov3Result(int Count);
+	// ResNet SSD
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowSSDResResult(int Count, const TArray<float>& FaceX, const TArray<float>& FaceY, const TArray<float>& FaceSize);
+	
+	/* Detections */
+	void DetectYolov5Head(Mat& Frame);
+	void DetectYolov3Body(Mat& inMat);
+	void DetectSSDResFace(Mat& inMat);
 
 private:
 	// Define private variables and helper functions
