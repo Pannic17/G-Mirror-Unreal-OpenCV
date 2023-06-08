@@ -31,7 +31,7 @@ struct DetectionResult
 	int count;
 	vector<float> confidences;
 	vector<cv::Rect> boxes;
-	vector<int> indicies;
+	vector<int> classID;
 };
 
 
@@ -108,7 +108,7 @@ private:
 	void CutImage(const Mat inMat, FVector2D inPos);
 	void CutImageRect(const Mat inMat, cv::Rect inRect);
 
-	void PostProcessing(const Mat& Frame, vector<Mat>& Outs);
+	void PostProcessing(vector<Mat>& Outs, int Width, int Height, int InWidth, int InHeight);
 };
 
 

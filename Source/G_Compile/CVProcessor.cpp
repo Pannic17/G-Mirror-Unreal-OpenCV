@@ -91,10 +91,10 @@ void ACVProcessor::ReadFrame()
 			cvtColor(frame, frame, COLOR_BGRA2BGR);
 		}
 		
-		// TODO: EnhanceImage
+		
 		if (DoEnhanceImage)
 		{
-			
+			// TODO: EnhanceImage
 		}
 		
 		AsyncTask(ENamedThreads::GameThread, [=]()
@@ -108,7 +108,7 @@ void ACVProcessor::ReadFrame()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Use Yolov5 Model"));
 			Yolov5Count = 0;
-			// TODO: Detect with YoLov5
+			DetectYolov5Head(frame);
 		}
 		if (UseYolov3)
 		{
@@ -156,8 +156,10 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		int RowIndex = 0;
 		float* Prediction = (float*)Yolov5Outs[0].data;
 
+		DetectionResult RawResult;
+
 		for (int lS = 0; lS < Yolov5StrideNum; lS++)   ///����ͼ�߶�
-			{
+		{
 			const float Stride = pow(2, lS + 3);
 			int GridXNum = static_cast<int>(ceil(Yolov5Width / Stride));
 			int GridYNum = static_cast<int>(ceil(Yolov5Height / Stride));
@@ -191,9 +193,9 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 								int leftBound = static_cast<int>((centerX - PaddingWidth - 0.5 * boxWidth) * RatioWidth);
 								int topBound = static_cast<int>((centerY - PaddingHeight - 0.5 * boxHeight) * RatioHeight);
 
-								Yolov5Result.confidences.push_back(static_cast<float>(ClassScore));
-								Yolov5Result.boxes.push_back(cv::Rect(leftBound, topBound, static_cast<int>(boxWidth * RatioWidth), static_cast<int>(boxHeight * RatioHeight)));
-								// Yolov5Result.indicies.push_back(class_idx);
+								RawResult.confidences.push_back(static_cast<float>(ClassScore));
+								RawResult.boxes.push_back(cv::Rect(leftBound, topBound, static_cast<int>(boxWidth * RatioWidth), static_cast<int>(boxHeight * RatioHeight)));
+								Yolov5Result.classID.push_back(0);
 							}
 						}
 						RowIndex++;
@@ -201,7 +203,21 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 					}
 				}
 			}
-			}
+		}
+
+		vector<int> indices;
+		NMSBoxes(RawResult.boxes, RawResult.confidences, ConfigThreshold, NMSThreshold, indices);
+		for (size_t i = 0; i < indices.size(); ++i)
+		{
+			int index = indices[i];
+			cv::Rect box = RawResult.boxes[index];
+			Yolov5Result.boxes.push_back(box);
+			Yolov5Result.confidences.push_back(RawResult.confidences[index]);
+			Yolov5Result.classID.push_back(0);
+			Yolov5Count++;
+			UE_LOG(LogTemp, Warning, TEXT("Detected At X %d, Y %d, W %d, H %d."), box.x, box.y, box.width, box.height);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
 		
 		if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
 	}
@@ -210,6 +226,7 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		Mat Yolov5Bolb = blobFromImage(Frame, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
 		Yolov5Net.setInput(Yolov5Bolb);
 		Yolov5Net.forward(Yolov5Outs, Yolov5Net.getUnconnectedOutLayersNames());
+		PostProcessing(Yolov5Outs, Width, Height, Yolov5Width, Yolov5Height);
 	}
 	
 }
@@ -346,40 +363,83 @@ Mat ACVProcessor::ResizeImage(Mat InMat, int *Width, int *Height, int *Top, int 
 	return OutMat;
 }
 
-void ACVProcessor::PostProcessing(const Mat& Frame, vector<Mat>& Outs)
+void ACVProcessor::PostProcessing(vector<Mat>& Outs, int Width, int Height, int InWidth, int InHeight)
 {
-	for (size_t i = 0; i < Outs.size(); i++)
+	const int NumProposal = Outs[0].size[1];
+	int OutLength = Outs[0].size[2];
+	if (Outs[0].dims > 2)
 	{
+		Outs[0] = Outs[0].reshape(0, NumProposal);
 	}
-		// Mat Out = Outs[i];
-		// for (int j = 0; j < Out.rows; j++)
-		// {
-		// 	const int ClassId = Out.at<float>(j, 1);
-		// 	const float Confidence = Out.at<float>(j, 2);
-		// 	if (Confidence > Yolov5Confidence)
-		// 	{
-		// 		const int Left = static_cast<int>(Out.at<float>(j, 3) * Frame.cols);
-		// 		const int Top = static_cast<int>(Out.at<float>(j, 4) * Frame.rows);
-		// 		const int Right = static_cast<int>(Out.at<float>(j, 5) * Frame.cols);
-		// 		const int Bottom = static_cast<int>(Out.at<float>(j, 6) * Frame.rows);
-		// 		const int Width = Right - Left + 1;
-		// 		const int Height = Bottom - Top + 1;
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Detected: %d"), ClassId);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Confidence: %f"), Confidence);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Left: %d"), Left);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Top: %d"), Top);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Right: %d"), Right);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Bottom: %d"), Bottom);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Width: %d"), Width);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Height: %d"), Height);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Width: %d"), Frame.cols);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Height: %d"), Frame.rows);
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Channels: %d"), Frame.channels());
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Type: %d"), Frame.type());
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Depth: %d"), Frame.depth());
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Size: %d"), Frame.size());
-		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Step: %d"), Frame.step);
-		// 		UE_LOG(LogTemp, Warning, TEXT("	"));
+	float RatioWidth = static_cast<float>(Width) / InWidth;
+	float RatioHeight = static_cast<float>(Height) / InHeight;
+	// TODO Change Variable Name
+	// int xMin = 0, yMin = 0, xMax = 0, yMax = 0, Index = 0; 
+	int RowIndex = 0;
+	float* Prediction = (float*)Outs[0].data;
+
+	DetectionResult RawResult;
+
+	for (int lS = 0; lS < Yolov5StrideNum; lS++)   ///����ͼ�߶�
+	{
+		const float Stride = pow(2, lS + 3);
+		int GridXNum = static_cast<int>(ceil(Yolov5Width / Stride));
+		int GridYNum = static_cast<int>(ceil(Yolov5Height / Stride));
+		for (int lA = 0; lA < 3; lA++)    ///anchor
+		{
+			const float AnchorWidth = this->Anchors[lS * 6 + lA * 2];
+			const float AnchorHeight = this->Anchors[lS * 6 + lA * 2 + 1];
+			for (int lY = 0; lY < GridYNum; lY++)
+			{
+				for (int lX = 0; lX < GridXNum; lX++)
+				{
+					float BoxScore = Prediction[4];
+					if (BoxScore > ObjectThreshold)
+					{
+						// TODO: Get & Set Class Score
+						/* For specific case of head detection, class number is only 1, so col5 is used */
+						// Mat ClassScores = Yolov5Outs[0].row(RowIndex).colRange(5, nout);
+						// Point classIdPoint
+						// Get the value and location of the maximum score
+						// minMaxLoc(ClassScores, 0, &MaxClassScore, 0, &classIdPoint);
+						double ClassScore = Prediction[5];
+						ClassScore *= BoxScore;
+						if (ClassScore > ConfigThreshold)
+						{ 
+							// const int class_idx = classIdPoint.x;
+							float centerX = (Prediction[0] * 2.f - 0.5f + lX) * Stride;  ///cx
+							float centerY = (Prediction[1] * 2.f - 0.5f + lY) * Stride;   ///cy
+							float boxWidth = powf(Prediction[2] * 2.f, 2.f) * AnchorWidth;   ///w
+							float boxHeight = powf(Prediction[3] * 2.f, 2.f) * AnchorHeight;  ///h
+
+							int leftBound = static_cast<int>((centerX - PaddingWidth - 0.5 * boxWidth) * RatioWidth);
+							int topBound = static_cast<int>((centerY - PaddingHeight - 0.5 * boxHeight) * RatioHeight);
+
+							RawResult.confidences.push_back(static_cast<float>(ClassScore));
+							RawResult.boxes.push_back(cv::Rect(leftBound, topBound, static_cast<int>(boxWidth * RatioWidth), static_cast<int>(boxHeight * RatioHeight)));
+							Yolov5Result.classID.push_back(0);
+						}
+					}
+					RowIndex++;
+					Prediction += OutLength;
+				}
+			}
+		}
+	}
+
+	vector<int> indices;
+	NMSBoxes(RawResult.boxes, RawResult.confidences, ConfigThreshold, NMSThreshold, indices);
+	for (size_t i = 0; i < indices.size(); ++i)
+	{
+		int index = indices[i];
+		cv::Rect box = RawResult.boxes[index];
+		Yolov5Result.boxes.push_back(box);
+		Yolov5Result.confidences.push_back(RawResult.confidences[index]);
+		Yolov5Result.classID.push_back(0);
+		Yolov5Count++;
+		UE_LOG(LogTemp, Warning, TEXT("Detected At X %d, Y %d, W %d, H %d."), box.x, box.y, box.width, box.height);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
 }
 
 /*Thread Instance*/
