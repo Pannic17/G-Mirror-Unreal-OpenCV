@@ -31,7 +31,7 @@ struct DetectionResult
 	int count;
 	vector<float> confidences;
 	vector<cv::Rect> boxes;
-	vector<int> classIds;
+	vector<int> indicies;
 };
 
 const float anchors_640[3][6] = { {10.0,  13.0, 16.0,  30.0,  33.0,  23.0},
@@ -68,6 +68,9 @@ public:
 
 	/* Core */
 	void ReadFrame();
+
+	/* Result Struct */
+	DetectionResult Yolov5Result;
 
 	/* Result Var - UPROPERTY */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
@@ -106,8 +109,11 @@ private:
 	static UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
 	void InitCameraAndThreadRunnable(uint32 index);
 
+	static Mat ResizeImage(Mat InMat, int *Width, int *Height, int *Top, int *Left);
 	void CutImage(const Mat inMat, FVector2D inPos);
 	void CutImageRect(const Mat inMat, cv::Rect inRect);
+
+	void PostProcessing(const Mat& Frame, vector<Mat>& Outs);
 };
 
 

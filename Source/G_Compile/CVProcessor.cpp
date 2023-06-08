@@ -91,7 +91,7 @@ void ACVProcessor::ReadFrame()
 		}
 		
 		// TODO: EnhanceImage
-		if (Enhance)
+		if (DoEnhanceImage)
 		{
 			
 		}
@@ -128,6 +128,43 @@ void ACVProcessor::ReadFrame()
 void ACVProcessor::DetectYolov5Head(Mat& Frame)
 {
 	// TODO: Detect With Yolov5 Model
+	if (Frame.empty()) return;
+	Yolov5Count = 0;
+	int Width = Frame.cols;
+	int Height = Frame.rows;
+	
+	if (DoResizeImage)
+	{
+		Mat Resized = ResizeImage(Frame, &NewWidth, &NewHeight, &NewTop, &NewLeft);
+		
+		Mat Yolov5Bolb = blobFromImage(Resized, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
+
+		Yolov5Net.setInput(Yolov5Bolb);
+		Yolov5Net.forward(Yolov5Outs, Yolov5Net.getUnconnectedOutLayersNames());
+
+		const int NumProposal = Yolov5Outs[0].size[1];
+		int nout = Yolov5Outs[0].size[2];
+		if (Yolov5Outs[0].dims > 2)
+		{
+			Yolov5Outs[0] = Yolov5Outs[0].reshape(0, NumProposal);
+		}
+		float RatioWidth = static_cast<float>(Width) / NewWidth;
+		float RatioHeight = static_cast<float>(Height) / NewHeight;
+		// TODO Change Variable Name
+		int xMin = 0, yMin = 0, xMax = 0, yMax = 0, Index = 0; 
+		int n = 0, q = 0, i = 0, j = 0, row_ind = 0;
+		float* pdata = (float*)Yolov5Outs[0].data;
+
+		
+		if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
+	}
+	else
+	{
+		Mat Yolov5Bolb = blobFromImage(Frame, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
+		Yolov5Net.setInput(Yolov5Bolb);
+		Yolov5Net.forward(Yolov5Outs, Yolov5Net.getUnconnectedOutLayersNames());
+	}
+	
 }
 
 // Detect With Yolov3 Model
@@ -149,18 +186,18 @@ void ACVProcessor::DetectYolov3Body(Mat& Frame)
 void ACVProcessor::DetectSSDResFace(Mat& Frame)
 {
 	if (Frame.empty()) return;
-	TArray<UTexture2D*> outarr;//类似std::Vector动态数组
-
+	TArray<UTexture2D*> SSDResOuts;//类似std::Vector动态数组
+	SSDResCount = 0;
+	SSDResFaceX = VACUNT;
+	SSDResFaceY = VACUNT;
+	SSDResFaceSize = VACUNT;
 	int Width = Frame.cols;
 	int Height = Frame.rows;
 	Mat SSDResBlob = blobFromImage(Frame, 0.5, Size(SSDResWidth, SSDResHeight), Scalar(0, 0, 0), false, false);
 	SSDResNet.setInput(SSDResBlob, "data");
 	Mat FaceDetection = SSDResNet.forward("detection_out");
 	Mat Detections(FaceDetection.size[2], FaceDetection.size[3], CV_32F, FaceDetection.ptr<float>());
-	SSDResCount = 0;
-	SSDResFaceX = VACUNT;
-	SSDResFaceY = VACUNT;
-	SSDResFaceSize = VACUNT;
+	
 
 	UE_LOG(LogTemp, Warning, TEXT("####Detected: %d"), Detections.rows);
 
@@ -230,6 +267,72 @@ void ACVProcessor::InitCameraAndThreadRunnable(uint32 index)
 		}
 		FPlatformProcess::Sleep(0.01);
 	});
+}
+
+Mat ACVProcessor::ResizeImage(Mat InMat, int *Width, int *Height, int *Top, int *Left)
+{
+	const int InWidth = InMat.cols;
+	const int InHeight = InMat.rows;
+	*Width = Yolov5Width;
+	*Height = Yolov5Height;
+	Mat OutMat;
+	if (DoKeepRatio && InHeight != InWidth) {
+		const float InScale = static_cast<float>(InHeight) / InWidth;
+		if (InScale > 1) {
+			*Width = static_cast<int>(Yolov5Width / InScale);
+			*Height = Yolov5Height;
+			resize(InMat, OutMat, Size(*Width, *Height), INTER_AREA);
+			*Left = static_cast<int>((Yolov5Width - *Width) * 0.5);
+			copyMakeBorder(OutMat, OutMat, 0, 0, *Left, Yolov5Width - *Width - *Left, BORDER_CONSTANT, 114);
+		}
+		else {
+			*Width = Yolov5Width;
+			*Height = static_cast<int>(Yolov5Height * InScale);
+			resize(InMat, OutMat, Size(*Width, *Height), INTER_AREA);
+			*Top = static_cast<int>((Yolov5Height - *Height) * 0.5);
+			copyMakeBorder(OutMat, OutMat, *Top, Yolov5Height - *Height - *Top, 0, 0, BORDER_CONSTANT, 114);
+		}
+	}
+	else {
+		resize(InMat, OutMat, Size(*Width, *Height), INTER_AREA);
+	}
+	return OutMat;
+}
+
+void ACVProcessor::PostProcessing(const Mat& Frame, vector<Mat>& Outs)
+{
+	for (size_t i = 0; i < Outs.size(); i++)
+	{
+	}
+		// Mat Out = Outs[i];
+		// for (int j = 0; j < Out.rows; j++)
+		// {
+		// 	const int ClassId = Out.at<float>(j, 1);
+		// 	const float Confidence = Out.at<float>(j, 2);
+		// 	if (Confidence > Yolov5Confidence)
+		// 	{
+		// 		const int Left = static_cast<int>(Out.at<float>(j, 3) * Frame.cols);
+		// 		const int Top = static_cast<int>(Out.at<float>(j, 4) * Frame.rows);
+		// 		const int Right = static_cast<int>(Out.at<float>(j, 5) * Frame.cols);
+		// 		const int Bottom = static_cast<int>(Out.at<float>(j, 6) * Frame.rows);
+		// 		const int Width = Right - Left + 1;
+		// 		const int Height = Bottom - Top + 1;
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Detected: %d"), ClassId);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Confidence: %f"), Confidence);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Left: %d"), Left);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Top: %d"), Top);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Right: %d"), Right);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Bottom: %d"), Bottom);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Width: %d"), Width);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Height: %d"), Height);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Width: %d"), Frame.cols);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Height: %d"), Frame.rows);
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Channels: %d"), Frame.channels());
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Type: %d"), Frame.type());
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Depth: %d"), Frame.depth());
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Size: %d"), Frame.size());
+		// 		UE_LOG(LogTemp, Warning, TEXT("####Frame Step: %d"), Frame.step);
+		// 		UE_LOG(LogTemp, Warning, TEXT("	"));
 }
 
 /*Thread Instance*/
