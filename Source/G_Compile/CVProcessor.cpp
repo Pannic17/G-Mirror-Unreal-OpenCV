@@ -16,6 +16,7 @@ ACVProcessor::ACVProcessor()
 	FString Yolov5ModelPath = NetworkPath + "yolov5s.onnx";
 	FString Yolov5ClassPath = NetworkPath + "class.names";
 	this->Yolov5Net = readNet(TCHAR_TO_UTF8(*Yolov5ModelPath));
+	Anchors = (float*) Anchors640;
     if (Yolov5Net.empty())
     {
 	    UE_LOG(LogTemp, Warning, TEXT("Yolov5Net Did Not Load!!!"));
@@ -135,7 +136,7 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 	
 	if (DoResizeImage)
 	{
-		Mat Resized = ResizeImage(Frame, &NewWidth, &NewHeight, &NewTop, &NewLeft);
+		Mat Resized = ResizeImage(Frame, &NewWidth, &NewHeight, &PaddingHeight, &PaddingWidth);
 		
 		Mat Yolov5Bolb = blobFromImage(Resized, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
 
@@ -151,10 +152,56 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		float RatioWidth = static_cast<float>(Width) / NewWidth;
 		float RatioHeight = static_cast<float>(Height) / NewHeight;
 		// TODO Change Variable Name
-		int xMin = 0, yMin = 0, xMax = 0, yMax = 0, Index = 0; 
-		int n = 0, q = 0, i = 0, j = 0, row_ind = 0;
-		float* pdata = (float*)Yolov5Outs[0].data;
+		// int xMin = 0, yMin = 0, xMax = 0, yMax = 0, Index = 0; 
+		int RowIndex = 0;
+		float* Prediction = (float*)Yolov5Outs[0].data;
 
+		for (int lS = 0; lS < Yolov5StrideNum; lS++)   ///����ͼ�߶�
+			{
+			const float Stride = pow(2, lS + 3);
+			int GridXNum = static_cast<int>(ceil(Yolov5Width / Stride));
+			int GridYNum = static_cast<int>(ceil(Yolov5Height / Stride));
+			for (int lA = 0; lA < 3; lA++)    ///anchor
+			{
+				const float AnchorWidth = this->Anchors[lS * 6 + lA * 2];
+				const float AnchorHeight = this->Anchors[lS * 6 + lA * 2 + 1];
+				for (int lY = 0; lY < GridYNum; lY++)
+				{
+					for (int lX = 0; lX < GridXNum; lX++)
+					{
+						float BoxScore = Prediction[4];
+						if (BoxScore > ObjectThreshold)
+						{
+							// TODO: Get & Set Class Score
+							/* For specific case of head detection, class number is only 1, so col5 is used */
+							// Mat ClassScores = Yolov5Outs[0].row(RowIndex).colRange(5, nout);
+							// Point classIdPoint;
+							double MaxClassScore = Yolov5Outs[0].at<double>(RowIndex, 5);
+							// Get the value and location of the maximum score
+							// minMaxLoc(ClassScores, 0, &MaxClassScore, 0, &classIdPoint);
+							MaxClassScore *= BoxScore;
+							if (MaxClassScore > ConfigThreshold)
+							{ 
+								// const int class_idx = classIdPoint.x;
+								float cx = (Prediction[0] * 2.f - 0.5f + lX) * Stride;  ///cx
+								float cy = (Prediction[1] * 2.f - 0.5f + lY) * Stride;   ///cy
+								float w = powf(Prediction[2] * 2.f, 2.f) * AnchorWidth;   ///w
+								float h = powf(Prediction[3] * 2.f, 2.f) * AnchorHeight;  ///h
+
+								int left = int((cx - PaddingWidth - 0.5 * w) * RatioWidth);
+								int top = int((cy - PaddingHeight - 0.5 * h) * RatioHeight);
+
+								Yolov5Result.confidences.push_back((float)MaxClassScore);
+								Yolov5Result.boxes.push_back(cv::Rect(left, top, static_cast<int>(w * RatioWidth), static_cast<int>(h * RatioHeight)));
+								// Yolov5Result.indicies.push_back(class_idx);
+							}
+						}
+						RowIndex++;
+						Prediction += nout;
+					}
+				}
+			}
+			}
 		
 		if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
 	}
