@@ -144,7 +144,7 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		Yolov5Net.forward(Yolov5Outs, Yolov5Net.getUnconnectedOutLayersNames());
 
 		const int NumProposal = Yolov5Outs[0].size[1];
-		int nout = Yolov5Outs[0].size[2];
+		int OutLength = Yolov5Outs[0].size[2];
 		if (Yolov5Outs[0].dims > 2)
 		{
 			Yolov5Outs[0] = Yolov5Outs[0].reshape(0, NumProposal);
@@ -175,29 +175,29 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 							// TODO: Get & Set Class Score
 							/* For specific case of head detection, class number is only 1, so col5 is used */
 							// Mat ClassScores = Yolov5Outs[0].row(RowIndex).colRange(5, nout);
-							// Point classIdPoint;
-							double MaxClassScore = Yolov5Outs[0].at<double>(RowIndex, 5);
+							// Point classIdPoint
 							// Get the value and location of the maximum score
 							// minMaxLoc(ClassScores, 0, &MaxClassScore, 0, &classIdPoint);
-							MaxClassScore *= BoxScore;
-							if (MaxClassScore > ConfigThreshold)
+							double ClassScore = Prediction[5];
+							ClassScore *= BoxScore;
+							if (ClassScore > ConfigThreshold)
 							{ 
 								// const int class_idx = classIdPoint.x;
-								float cx = (Prediction[0] * 2.f - 0.5f + lX) * Stride;  ///cx
-								float cy = (Prediction[1] * 2.f - 0.5f + lY) * Stride;   ///cy
-								float w = powf(Prediction[2] * 2.f, 2.f) * AnchorWidth;   ///w
-								float h = powf(Prediction[3] * 2.f, 2.f) * AnchorHeight;  ///h
+								float centerX = (Prediction[0] * 2.f - 0.5f + lX) * Stride;  ///cx
+								float centerY = (Prediction[1] * 2.f - 0.5f + lY) * Stride;   ///cy
+								float boxWidth = powf(Prediction[2] * 2.f, 2.f) * AnchorWidth;   ///w
+								float boxHeight = powf(Prediction[3] * 2.f, 2.f) * AnchorHeight;  ///h
 
-								int left = int((cx - PaddingWidth - 0.5 * w) * RatioWidth);
-								int top = int((cy - PaddingHeight - 0.5 * h) * RatioHeight);
+								int leftBound = static_cast<int>((centerX - PaddingWidth - 0.5 * boxWidth) * RatioWidth);
+								int topBound = static_cast<int>((centerY - PaddingHeight - 0.5 * boxHeight) * RatioHeight);
 
-								Yolov5Result.confidences.push_back((float)MaxClassScore);
-								Yolov5Result.boxes.push_back(cv::Rect(left, top, static_cast<int>(w * RatioWidth), static_cast<int>(h * RatioHeight)));
+								Yolov5Result.confidences.push_back(static_cast<float>(ClassScore));
+								Yolov5Result.boxes.push_back(cv::Rect(leftBound, topBound, static_cast<int>(boxWidth * RatioWidth), static_cast<int>(boxHeight * RatioHeight)));
 								// Yolov5Result.indicies.push_back(class_idx);
 							}
 						}
 						RowIndex++;
-						Prediction += nout;
+						Prediction += OutLength;
 					}
 				}
 			}
