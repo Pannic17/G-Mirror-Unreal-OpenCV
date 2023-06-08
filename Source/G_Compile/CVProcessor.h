@@ -67,6 +67,14 @@ public:
 	/* Core */
 	void ReadFrame();
 
+	/* Show Event - UFUNCTION */
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowImage(UTexture2D* outRGB,int Width,int Height);
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowCutImage( UTexture2D* outRGB);
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowNativeImage(UTexture2D* outRGB);
+
 private:
 	// Define private variables and helper functions
 	/* Configs */
@@ -77,7 +85,9 @@ private:
 
 	UTexture2D* ConvertMat2Texture2D(const Mat& InMat);
 	void InitCameraAndThreadRunnable(uint32 index);
-	
+
+	void CutImage(const Mat inMat, FVector2D inPos);
+	void CutImageRect(const Mat inMat, cv::Rect inRect);
 };
 
 
