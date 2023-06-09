@@ -69,7 +69,7 @@ void ACVProcessor::Tick(float DeltaTime)
 		{
 			xArray.Add(Yolov5Result.center[i][0]);
 			yArray.Add(Yolov5Result.center[i][1]);
-			
+			UE_LOG(LogTemp, Warning, TEXT("Detected At X %f, Y %f."), Yolov5Result.center[i][0], Yolov5Result.center[i][1]);
 			UE_LOG(LogTemp, Warning, TEXT("Detected Size W %f, H %f."), Yolov5Result.size[i][0], Yolov5Result.size[i][1]);
 		}
 		ShowYolov5Result(Yolov5Count, xArray, yArray);
@@ -84,6 +84,24 @@ void ACVProcessor::Tick(float DeltaTime)
 		UE_LOG(LogTemp, Warning, TEXT("Detected Faces: %d"), SSDResCount);
 		// TODO: Show ResNet SSD Result
 	}
+}
+
+void ACVProcessor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	if (ReadThread)
+	{
+		ReadThread->Stop();
+		ReadThread = nullptr;
+
+	}
+	if (Camera.isOpened())
+	{
+		Camera.release();
+	}
+	Yolov5Count = 0;
+	Yolov3Count = 0;
+	SSDResCount = 0;
 }
 
 void ACVProcessor::ReadFrame()
@@ -151,11 +169,18 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		Mat Yolov5Bolb = blobFromImage(Resized, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
 
 		Yolov5Net.setInput(Yolov5Bolb);
-		UE_LOG(LogTemp, Warning, TEXT("Check Point %d"), DoResizeImage);
+		UE_LOG(LogTemp, Warning, TEXT("Yolov5Outs Size %llu"), Yolov5Outs.size());
+		for (size_t i = 0; i < Yolov5Outs.size(); ++i)
+		{
+			Mat output = Yolov5Outs[i];
+			UE_LOG(LogTemp, Warning, TEXT("Data Size %d"), *output.size);
+			UE_LOG(LogTemp, Warning, TEXT("Data Addr %p"), output.data);
+		}
+		
 		Yolov5Net.forward(Yolov5Outs, GetOutputsNames(Yolov5Net));
 
 		const int NumProposal = Yolov5Outs[0].size[1];
-		UE_LOG(LogTemp, Warning, TEXT("NumProposal: %d"), NumProposal);
+		// UE_LOG(LogTemp, Warning, TEXT("NumProposal: %d"), NumProposal);
 		int OutLength = Yolov5Outs[0].size[2];
 		if (Yolov5Outs[0].dims > 2)
 		{
@@ -232,7 +257,9 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 			UE_LOG(LogTemp, Warning, TEXT("Detected At X %d, Y %d, W %d, H %d."), box.x, box.y, box.width, box.height);
 		}
 		UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
-		
+
+		// delete Prediction;
+		//
 		// if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
 	}
 	else

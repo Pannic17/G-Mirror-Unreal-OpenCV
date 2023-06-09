@@ -61,6 +61,8 @@ public:
 	virtual void BeginPlay() override;
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	// Called when the game ends
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/* Core */
 	void ReadFrame();
