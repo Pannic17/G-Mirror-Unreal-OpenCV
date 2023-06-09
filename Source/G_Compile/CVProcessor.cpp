@@ -69,6 +69,8 @@ void ACVProcessor::Tick(float DeltaTime)
 		{
 			xArray.Add(Yolov5Result.center[i][0]);
 			yArray.Add(Yolov5Result.center[i][1]);
+			
+			UE_LOG(LogTemp, Warning, TEXT("Detected Size W %f, H %f."), Yolov5Result.size[i][0], Yolov5Result.size[i][1]);
 		}
 		ShowYolov5Result(Yolov5Count, xArray, yArray);
 	}
@@ -119,19 +121,18 @@ void ACVProcessor::ReadFrame()
 			Yolov5Count = 0;
 			DetectYolov5Head(frame);
 		}
-		if (UseYolov3)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
-			Yolov3Count = 0;
-			DetectYolov3Body(frame);
-		}
-		if (UseSSDRes)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
-			SSDResCount = 0;
-			DetectSSDResFace(frame);
-		}
-		
+		// if (UseYolov3)
+		// {
+		// 	UE_LOG(LogTemp, Warning, TEXT("Use Yolov3 Model"));
+		// 	Yolov3Count = 0;
+		// 	DetectYolov3Body(frame);
+		// }
+		// if (UseSSDRes)
+		// {
+		// 	UE_LOG(LogTemp, Warning, TEXT("Use ResNet SSD Model"));
+		// 	SSDResCount = 0;
+		// 	DetectSSDResFace(frame);
+		// }
 	}
 }
 
@@ -142,17 +143,19 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 	Yolov5Count = 0;
 	int Width = Frame.cols;
 	int Height = Frame.rows;
-	
 	if (DoResizeImage)
 	{
+		
 		Mat Resized = ResizeImage(Frame, &NewWidth, &NewHeight, &PaddingHeight, &PaddingWidth);
 		
 		Mat Yolov5Bolb = blobFromImage(Resized, 1 / 255.0, Size(Yolov5Width, Yolov5Height), Scalar(0, 0, 0), true, false);
 
 		Yolov5Net.setInput(Yolov5Bolb);
-		Yolov5Net.forward(Yolov5Outs, Yolov5Net.getUnconnectedOutLayersNames());
+		UE_LOG(LogTemp, Warning, TEXT("Check Point %d"), DoResizeImage);
+		Yolov5Net.forward(Yolov5Outs, GetOutputsNames(Yolov5Net));
 
 		const int NumProposal = Yolov5Outs[0].size[1];
+		UE_LOG(LogTemp, Warning, TEXT("NumProposal: %d"), NumProposal);
 		int OutLength = Yolov5Outs[0].size[2];
 		if (Yolov5Outs[0].dims > 2)
 		{
@@ -230,7 +233,7 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		}
 		UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
 		
-		if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
+		// if (!Yolov5Bolb.empty()) Yolov5Bolb.resize(0);
 	}
 	else
 	{
@@ -451,6 +454,25 @@ void ACVProcessor::PostProcessing(vector<Mat>& Outs, int Width, int Height, int 
 		UE_LOG(LogTemp, Warning, TEXT("Detected At X %d, Y %d, W %d, H %d."), box.x, box.y, box.width, box.height);
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
+}
+
+vector<String> ACVProcessor::GetOutputsNames(const Net& net)
+{
+	static std::vector<cv::String> names;
+	if (names.empty())
+	{
+		//Get the indices of the output layers, i.e. the layers with unconnected outputs
+		OutLayers = net.getUnconnectedOutLayers();
+
+		//get the names of all the layers in the network
+		LayersNames = net.getLayerNames();
+
+		// Get the names of the output layers in names
+		names.resize(OutLayers.size());
+		for (size_t i = 0; i < OutLayers.size(); ++i)
+			names[i] = LayersNames[OutLayers[i] - 1];
+	}
+	return names;
 }
 
 

@@ -107,11 +107,12 @@ private:
 	void InitCameraAndThreadRunnable(uint32 index);
 
 	static Mat ResizeImage(Mat InMat, int *Width, int *Height, int *Top, int *Left);
-	void CutImage(const Mat inMat, FVector2D inPos);
-	void CutImageRect(const Mat inMat, cv::Rect inRect);
+	// void CutImage(const Mat inMat, FVector2D inPos);
+	// void CutImageRect(const Mat inMat, cv::Rect inRect);
 
 	void PostProcessing(vector<Mat>& Outs, int Width, int Height, int InWidth, int InHeight);
 
+	static vector<String> GetOutputsNames(const Net& net);
 	// static TArray<any> ConvertVector2TArray(const vector<any>& Vectors);
 };
 
@@ -149,6 +150,7 @@ public:
 		
 		while (StopThreadCounter.GetValue())
 		{
+			UE_LOG(LogTemp, Warning, TEXT("ReadFrame"));
 			ReadActor->ReadFrame();
 		}
 

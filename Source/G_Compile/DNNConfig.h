@@ -8,6 +8,8 @@ using namespace std;
 
 TArray<float> VACUNT;
 bool DoEnhanceImage = false;
+std::vector<std::string> LayersNames;//获取神经网络中的层级名称layout
+std::vector<int> OutLayers;
 
 bool UseTCP = false;
 bool UseYolov5 = true;
