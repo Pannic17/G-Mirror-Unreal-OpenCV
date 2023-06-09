@@ -61,7 +61,16 @@ void ACVProcessor::Tick(float DeltaTime)
 	if (Yolov5Count)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Detected Heads: %d"), Yolov5Count);
-		ShowYolov5Result(Yolov5Count);
+		TArray<float> xArray;
+		TArray<float> yArray;
+		TArray<float> wArray;
+		TArray<float> hArray;
+		for (int i = 0; i < Yolov5Result.boxes.size(); ++i)
+		{
+			xArray.Add(Yolov5Result.center[i][0]);
+			yArray.Add(Yolov5Result.center[i][1]);
+		}
+		ShowYolov5Result(Yolov5Count, xArray, yArray);
 	}
 	if (UseYolov3)
 	{
@@ -128,7 +137,7 @@ void ACVProcessor::ReadFrame()
 
 void ACVProcessor::DetectYolov5Head(Mat& Frame)
 {
-	// TODO: Detect With Yolov5 Model
+	// Detect With Yolov5 Model
 	if (Frame.empty()) return;
 	Yolov5Count = 0;
 	int Width = Frame.cols;
@@ -151,7 +160,6 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 		}
 		float RatioWidth = static_cast<float>(Width) / NewWidth;
 		float RatioHeight = static_cast<float>(Height) / NewHeight;
-		// TODO Change Variable Name
 		// int xMin = 0, yMin = 0, xMax = 0, yMax = 0, Index = 0; 
 		int RowIndex = 0;
 		float* Prediction = (float*)Yolov5Outs[0].data;
@@ -174,7 +182,6 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 						float BoxScore = Prediction[4];
 						if (BoxScore > ObjectThreshold)
 						{
-							// TODO: Get & Set Class Score
 							/* For specific case of head detection, class number is only 1, so col5 is used */
 							// Mat ClassScores = Yolov5Outs[0].row(RowIndex).colRange(5, nout);
 							// Point classIdPoint
@@ -195,7 +202,9 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 
 								RawResult.confidences.push_back(static_cast<float>(ClassScore));
 								RawResult.boxes.push_back(cv::Rect(leftBound, topBound, static_cast<int>(boxWidth * RatioWidth), static_cast<int>(boxHeight * RatioHeight)));
-								Yolov5Result.classID.push_back(0);
+								RawResult.classID.push_back(0);
+								RawResult.center.push_back({ centerX, centerY });
+								RawResult.size.push_back({ boxWidth, boxHeight });
 							}
 						}
 						RowIndex++;
@@ -214,6 +223,8 @@ void ACVProcessor::DetectYolov5Head(Mat& Frame)
 			Yolov5Result.boxes.push_back(box);
 			Yolov5Result.confidences.push_back(RawResult.confidences[index]);
 			Yolov5Result.classID.push_back(0);
+			Yolov5Result.center.push_back(RawResult.center[index]);
+			Yolov5Result.size.push_back(RawResult.size[index]);
 			Yolov5Count++;
 			UE_LOG(LogTemp, Warning, TEXT("Detected At X %d, Y %d, W %d, H %d."), box.x, box.y, box.width, box.height);
 		}
@@ -441,6 +452,7 @@ void ACVProcessor::PostProcessing(vector<Mat>& Outs, int Width, int Height, int 
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Detected %d Head(s)."), Yolov5Count);
 }
+
 
 /*Thread Instance*/
 FReadImageRunnable*  FReadImageRunnable::ReadInstance = nullptr;

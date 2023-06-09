@@ -32,6 +32,8 @@ struct DetectionResult
 	vector<float> confidences;
 	vector<cv::Rect> boxes;
 	vector<int> classID;
+	vector<vector<float>> center;
+	vector<vector<float>> size;
 };
 
 
@@ -84,7 +86,7 @@ public:
 
 	// TODO: Yolov5 Result
 	UFUNCTION(BlueprintImplementableEvent)
-	void ShowYolov5Result(int Count);
+	void ShowYolov5Result(int Count, const TArray<float>& CenterX, const TArray<float>& CenterY);
 	// Yolov3
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowYolov3Result(int Count);
@@ -109,6 +111,8 @@ private:
 	void CutImageRect(const Mat inMat, cv::Rect inRect);
 
 	void PostProcessing(vector<Mat>& Outs, int Width, int Height, int InWidth, int InHeight);
+
+	// static TArray<any> ConvertVector2TArray(const vector<any>& Vectors);
 };
 
 
